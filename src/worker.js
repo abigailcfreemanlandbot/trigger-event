@@ -7,32 +7,26 @@ export class DelayedAssignment extends DurableObject {
     this.env = env;
   }
 
-  async schedule(userId, botId, nodeId) {
-    const now = Date.now();
+  async schedule(userId, botId, nodeId, delaySeconds) {
+    const fireAt = Date.now() + delaySeconds * 1000;
 
-    const twoHours = now + (2 * 60 * 60 * 1000);
-    const twentyFourHours = now + (24 * 60 * 60 * 1000);
-
-    const oneMonthFromNow = new Date();
-    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-
-    const threeMonthsFromNow = new Date();
-    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
-
-    const alarms = [
-      twoHours,
-      twentyFourHours,
-      oneMonthFromNow.getTime(),
-      threeMonthsFromNow.getTime()
-    ].filter(t => t > now);
+    // Future: replace single alarm with multi-alarm sequence
+    // const now = Date.now();
+    // const twoHours = now + (2 * 60 * 60 * 1000);
+    // const twentyFourHours = now + (24 * 60 * 60 * 1000);
+    // const oneMonthFromNow = new Date();
+    // oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+    // const threeMonthsFromNow = new Date();
+    // threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+    // const alarms = [twoHours, twentyFourHours, oneMonthFromNow.getTime(), threeMonthsFromNow.getTime()].filter(t => t > now);
 
     await this.storage.put("userId", userId);
     await this.storage.put("botId", botId);
     await this.storage.put("nodeId", nodeId);
-    await this.storage.put("alarms", JSON.stringify(alarms));
-    await this.storage.setAlarm(alarms[0]);
+    await this.storage.put("alarms", JSON.stringify([fireAt]));
+    await this.storage.setAlarm(fireAt);
 
-    return { scheduled: true, alarms };
+    return { scheduled: true, alarms: [fireAt] };
   }
 
   async cancel() {
@@ -40,11 +34,19 @@ export class DelayedAssignment extends DurableObject {
     return { cancelled: true };
   }
 
+  async status() {
+    const alarms = await this.storage.get("alarms");
+    const nextAlarm = await this.storage.getAlarm();
+    return {
+      alarms: alarms ? JSON.parse(alarms) : [],
+      nextAlarm
+    };
+  }
+
   async alarm() {
     const userId = await this.storage.get("userId");
     const botId = await this.storage.get("botId");
     const nodeId = await this.storage.get("nodeId");
-    const alarms = JSON.parse(await this.storage.get("alarms"));
 
     const response = await fetch(`https://api.landbot.io/v1/customers/${userId}/assign_bot/${botId}/`, {
       method: "PUT",
@@ -60,11 +62,13 @@ export class DelayedAssignment extends DurableObject {
       throw new Error(`Landbot assign failed: ${response.status} ${errorText}`);
     }
 
-    const now = Date.now();
-    const nextAlarm = alarms.find(t => t > now);
-    if (nextAlarm) {
-      await this.storage.setAlarm(nextAlarm);
-    }
+    // Future: chain to next alarm in sequence
+    // const alarms = JSON.parse(await this.storage.get("alarms"));
+    // const now = Date.now();
+    // const nextAlarm = alarms.find(t => t > now);
+    // if (nextAlarm) {
+    //   await this.storage.setAlarm(nextAlarm);
+    // }
   }
 }
 
@@ -79,11 +83,11 @@ export default {
 
     if (url.pathname === "/trigger" && request.method === "POST") {
       const body = await request.json();
-      const { conversationId, userId, botId, nodeId } = body;
+      const { conversationId, userId, botId, nodeId, delaySeconds } = body;
 
       const id = env.DELAYED_ASSIGNMENT.idFromName(conversationId);
       const stub = env.DELAYED_ASSIGNMENT.get(id);
-      const result = await stub.schedule(userId, botId, nodeId);
+      const result = await stub.schedule(userId, botId, nodeId, delaySeconds);
 
       return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json" }
@@ -97,6 +101,18 @@ export default {
       const id = env.DELAYED_ASSIGNMENT.idFromName(conversationId);
       const stub = env.DELAYED_ASSIGNMENT.get(id);
       const result = await stub.cancel();
+
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    if (url.pathname === "/status" && request.method === "GET") {
+      const conversationId = url.searchParams.get("conversationId");
+
+      const id = env.DELAYED_ASSIGNMENT.idFromName(conversationId);
+      const stub = env.DELAYED_ASSIGNMENT.get(id);
+      const result = await stub.status();
 
       return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json" }
