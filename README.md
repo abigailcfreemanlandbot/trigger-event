@@ -2,23 +2,21 @@
 
 A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When `/trigger` is called, it sets a single alarm either at a specified delay or a specific unix timestamp. When the alarm fires, it calls the Landbot assign API to route the customer to the specified bot and node. Pending alarms can be checked via `/status` and cancelled at any time via `/cancel`.
 
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/abigailcfreemanlandbot/trigger-event)
+
 ## Setup
 
-1. Clone the repo
-   ```bash
-   git clone https://github.com/abigailcfreemanlandbot/trigger-event.git
-   cd trigger-event
-   ```
-2. Install dependencies
-   ```bash
-   npm install
-   ```
-3. Deploy to Cloudflare
-   ```bash
-   npm run deploy
-   ```
-4. Go to **Cloudflare dashboard → Workers → trigger-event → Settings → Variables and Secrets**
-5. Add a secret named `LANDBOT_TOKEN` with your raw Landbot API token as the value (e.g. `xxxxxxx`, without the `Token ` prefix)
+1. Click the **Deploy to Cloudflare Workers** button above and connect your Cloudflare account
+2. Deploy the Worker
+3. Go to **Cloudflare dashboard → Workers → trigger-event → Settings → Variables and Secrets**
+4. Add a secret named `LANDBOT_TOKEN` with your raw Landbot API token as the value (e.g. `xxxxxxx`, without the `Token ` prefix)
+
+**Prefer the CLI?**
+```bash
+git clone https://github.com/abigailcfreemanlandbot/trigger-event.git
+cd trigger-event
+npm install && npm run deploy
+```
 
 | Secret name | What it is |
 |---|---|
