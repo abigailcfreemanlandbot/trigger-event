@@ -10,7 +10,7 @@ One secret is required:
 
 | Secret name | What it is | Where to set it |
 |---|---|---|
-| `LANDBOT_TOKEN` | Your Landbot API token (e.g. `Token xxxxxxx`) | Cloudflare dashboard → Worker → Settings → Variables and Secrets |
+| `LANDBOT_TOKEN` | Your raw Landbot API token (e.g. `xxxxxxx`, without the `Token ` prefix) | Cloudflare dashboard → Worker → Settings → Variables and Secrets |
 
 ## Security model
 

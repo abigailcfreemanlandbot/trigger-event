@@ -50,7 +50,7 @@ export class DelayedAssignment extends DurableObject {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": this.env.LANDBOT_TOKEN
+        "Authorization": `Token ${this.env.LANDBOT_TOKEN}`
       },
       body: JSON.stringify({ launch: true, node: nodeId })
     });
