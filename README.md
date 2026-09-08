@@ -1,66 +1,63 @@
 # trigger-event
 
-A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When triggered via the `/trigger` endpoint, it stores the conversation details and sets an alarm for the specified delay (minutes, hours, days, or weeks). When the alarm fires, it calls the Landbot assign API to route the customer to the specified bot and node. Pending assignments can be cancelled at any time via the `/cancel` endpoint using the same `conversationId`.
+A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When `/trigger` is called with a `conversationId`, `userId`, `botId`, and `nodeId`, the Worker schedules four outbound calls to the Landbot assign API — at 2 hours, 24 hours, 1 month, and 3 months from the moment the request is received. Each alarm fires in sequence, calling `PUT /v1/customers/{userId}/assign_bot/{botId}/` on the Landbot API. Pending alarms for a conversation can be cancelled at any time via `/cancel`.
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/YOUR_REPO)
 
 ## Setup
 
-After deploying, no secrets need to be configured in the Cloudflare dashboard. The `apiKey` is passed per request in the request body, so each call can use whichever Landbot API key is appropriate.
+One secret is required:
 
-## API Reference
+| Secret name | What it is | Where to set it |
+|---|---|---|
+| `LANDBOT_TOKEN` | Your Landbot API token (e.g. `Token xxxxxxx`) | Cloudflare dashboard → Worker → Settings → Variables and Secrets |
 
-### POST `/trigger`
+## Security model
 
-Schedule a delayed bot assignment.
+`LANDBOT_TOKEN` serves two purposes: it authenticates incoming requests to the Worker (callers must include it in the `Authorization` header), and it's used by the Worker to authenticate outbound calls to the Landbot API when alarms fire. The token is never passed in request bodies, never stored in Durable Object storage, and never appears in logs.
+
+## API reference
+
+All requests require the header:
+
+```
+Authorization: Token xxxxxxx
+```
+
+### POST /trigger
+
+Schedule bot assignment alarms for a conversation.
 
 **Request body:**
-
 ```json
 {
-  "conversationId": "12345",
-  "userId": "67890",
-  "botId": "111",
-  "nodeId": "222",
-  "apiKey": "your-landbot-api-key",
-  "delaySeconds": 86400
+  "conversationId": "abc123",
+  "userId": "456",
+  "botId": "789",
+  "nodeId": "B_xxx"
 }
 ```
 
-| Field            | Type   | Description                                                                 |
-|------------------|--------|-----------------------------------------------------------------------------|
-| `conversationId` | string | Landbot conversation ID (`message.customer.conversation_id` from webhook)   |
-| `userId`         | string | Landbot customer ID to assign                                               |
-| `botId`          | string | ID of the bot to assign the customer to                                     |
-| `nodeId`         | string | Node within the bot to start from                                           |
-| `apiKey`         | string | Landbot API token                                                           |
-| `delaySeconds`   | number | Seconds to wait before triggering the assignment                            |
-
 **Response:**
-
 ```json
 {
   "scheduled": true,
-  "fireAt": 1234567890000
+  "alarms": [1234567890000, 1234654290000, 1237246290000, 1242430290000]
 }
 ```
 
----
+### POST /cancel
 
-### POST `/cancel`
-
-Cancel a pending bot assignment.
+Cancel all pending alarms for a conversation.
 
 **Request body:**
-
 ```json
 {
-  "conversationId": "12345"
+  "conversationId": "abc123"
 }
 ```
 
 **Response:**
-
 ```json
 {
   "cancelled": true

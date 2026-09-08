@@ -4,15 +4,35 @@ export class DelayedAssignment extends DurableObject {
   constructor(state, env) {
     super(state, env);
     this.storage = state.storage;
+    this.env = env;
   }
 
-  async schedule(userId, botId, nodeId, apiKey, delaySeconds) {
+  async schedule(userId, botId, nodeId) {
+    const now = Date.now();
+
+    const twoHours = now + (2 * 60 * 60 * 1000);
+    const twentyFourHours = now + (24 * 60 * 60 * 1000);
+
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+    const threeMonthsFromNow = new Date();
+    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+
+    const alarms = [
+      twoHours,
+      twentyFourHours,
+      oneMonthFromNow.getTime(),
+      threeMonthsFromNow.getTime()
+    ].filter(t => t > now);
+
     await this.storage.put("userId", userId);
     await this.storage.put("botId", botId);
     await this.storage.put("nodeId", nodeId);
-    await this.storage.put("apiKey", apiKey);
-    await this.storage.setAlarm(Date.now() + delaySeconds * 1000);
-    return { scheduled: true, fireAt: Date.now() + delaySeconds * 1000 };
+    await this.storage.put("alarms", JSON.stringify(alarms));
+    await this.storage.setAlarm(alarms[0]);
+
+    return { scheduled: true, alarms };
   }
 
   async cancel() {
@@ -24,13 +44,13 @@ export class DelayedAssignment extends DurableObject {
     const userId = await this.storage.get("userId");
     const botId = await this.storage.get("botId");
     const nodeId = await this.storage.get("nodeId");
-    const apiKey = await this.storage.get("apiKey");
+    const alarms = JSON.parse(await this.storage.get("alarms"));
 
     const response = await fetch(`https://api.landbot.io/v1/customers/${userId}/assign_bot/${botId}/`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Token ${apiKey}`
+        "Authorization": this.env.LANDBOT_TOKEN
       },
       body: JSON.stringify({ launch: true, node: nodeId })
     });
@@ -39,20 +59,31 @@ export class DelayedAssignment extends DurableObject {
       const errorText = await response.text();
       throw new Error(`Landbot assign failed: ${response.status} ${errorText}`);
     }
+
+    const now = Date.now();
+    const nextAlarm = alarms.find(t => t > now);
+    if (nextAlarm) {
+      await this.storage.setAlarm(nextAlarm);
+    }
   }
 }
 
 export default {
   async fetch(request, env) {
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader !== `Token ${env.LANDBOT_TOKEN}`) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
     const url = new URL(request.url);
 
     if (url.pathname === "/trigger" && request.method === "POST") {
       const body = await request.json();
-      const { conversationId, userId, botId, nodeId, apiKey, delaySeconds } = body;
+      const { conversationId, userId, botId, nodeId } = body;
 
       const id = env.DELAYED_ASSIGNMENT.idFromName(conversationId);
       const stub = env.DELAYED_ASSIGNMENT.get(id);
-      const result = await stub.schedule(userId, botId, nodeId, apiKey, delaySeconds);
+      const result = await stub.schedule(userId, botId, nodeId);
 
       return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json" }
