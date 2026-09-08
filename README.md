@@ -6,11 +6,15 @@ A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable
 
 ## Setup
 
-One secret is required:
+1. Click the **Deploy to Cloudflare Workers** button above
+2. Connect your Cloudflare account when prompted
+3. Deploy the Worker
+4. Go to **Cloudflare dashboard → Workers → trigger-event → Settings → Variables and Secrets**
+5. Add a secret named `LANDBOT_TOKEN` with your raw Landbot API token as the value (e.g. `xxxxxxx`, without the `Token ` prefix)
 
-| Secret name | What it is | Where to set it |
-|---|---|---|
-| `LANDBOT_TOKEN` | Your raw Landbot API token (e.g. `xxxxxxx`, without the `Token ` prefix) | Cloudflare dashboard → Worker → Settings → Variables and Secrets |
+| Secret name | What it is |
+|---|---|
+| `LANDBOT_TOKEN` | Your raw Landbot API token (without the `Token ` prefix) |
 
 ## Security model
 
