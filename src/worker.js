@@ -7,8 +7,8 @@ export class DelayedAssignment extends DurableObject {
     this.env = env;
   }
 
-  async schedule(userId, botId, nodeId, delaySeconds) {
-    const fireAt = Date.now() + delaySeconds * 1000;
+  async schedule(userId, botId, nodeId, delaySeconds, timestamp) {
+    const fireAt = timestamp ?? Date.now() + delaySeconds * 1000;
 
     // Future: replace single alarm with multi-alarm sequence
     // const now = Date.now();
@@ -83,11 +83,11 @@ export default {
 
     if (url.pathname === "/trigger" && request.method === "POST") {
       const body = await request.json();
-      const { conversationId, userId, botId, nodeId, delaySeconds } = body;
+      const { conversationId, userId, botId, nodeId, delaySeconds, timestamp } = body;
 
       const id = env.DELAYED_ASSIGNMENT.idFromName(conversationId);
       const stub = env.DELAYED_ASSIGNMENT.get(id);
-      const result = await stub.schedule(userId, botId, nodeId, delaySeconds);
+      const result = await stub.schedule(userId, botId, nodeId, delaySeconds, timestamp);
 
       return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json" }
