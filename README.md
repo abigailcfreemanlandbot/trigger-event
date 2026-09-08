@@ -2,7 +2,7 @@
 
 A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When `/trigger` is called, it sets a single alarm either at a specified delay or a specific unix timestamp. When the alarm fires, it calls the Landbot assign API to route the customer to the specified bot and node. Pending alarms can be checked via `/status` and cancelled at any time via `/cancel`.
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/YOUR_REPO)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/abigailcfreemanlandbot/trigger-event)
 
 ## Setup
 
