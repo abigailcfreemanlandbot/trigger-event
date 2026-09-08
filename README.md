@@ -1,6 +1,6 @@
 # trigger-event
 
-A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When `/trigger` is called with a `conversationId`, `userId`, `botId`, and `nodeId`, the Worker schedules four outbound calls to the Landbot assign API — at 2 hours, 24 hours, 1 month, and 3 months from the moment the request is received. Each alarm fires in sequence, calling `PUT /v1/customers/{userId}/assign_bot/{botId}/` on the Landbot API. Pending alarms for a conversation can be cancelled at any time via `/cancel`.
+A Cloudflare Worker that schedules delayed Landbot bot assignments using Durable Objects. When `/trigger` is called, it sets a single alarm either at a specified delay or a specific unix timestamp. When the alarm fires, it calls the Landbot assign API to route the customer to the specified bot and node. Pending alarms can be checked via `/status` and cancelled at any time via `/cancel`.
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/YOUR_REPO)
 
@@ -26,15 +26,27 @@ Authorization: Token xxxxxxx
 
 ### POST /trigger
 
-Schedule bot assignment alarms for a conversation.
+Schedule a bot assignment. Pass either `delaySeconds` (relative) or `timestamp` (absolute unix ms). If both are provided, `timestamp` takes precedence.
 
-**Request body:**
+**Request body (relative delay):**
 ```json
 {
   "conversationId": "abc123",
   "userId": "456",
   "botId": "789",
-  "nodeId": "B_xxx"
+  "nodeId": "B_xxx",
+  "delaySeconds": 120
+}
+```
+
+**Request body (specific timestamp):**
+```json
+{
+  "conversationId": "abc123",
+  "userId": "456",
+  "botId": "789",
+  "nodeId": "B_xxx",
+  "timestamp": 1234567890000
 }
 ```
 
@@ -42,13 +54,31 @@ Schedule bot assignment alarms for a conversation.
 ```json
 {
   "scheduled": true,
-  "alarms": [1234567890000, 1234654290000, 1237246290000, 1242430290000]
+  "alarms": [1234567890000]
 }
 ```
 
+### GET /status
+
+Check the pending alarm for a conversation.
+
+```
+GET /status?conversationId=abc123
+```
+
+**Response:**
+```json
+{
+  "alarms": [1234567890000],
+  "nextAlarm": 1234567890000
+}
+```
+
+`nextAlarm` is `null` if the alarm has already fired or been cancelled.
+
 ### POST /cancel
 
-Cancel all pending alarms for a conversation.
+Cancel the pending alarm for a conversation.
 
 **Request body:**
 ```json
